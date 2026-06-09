@@ -21,6 +21,8 @@ docker compose up --build
 
 Сервис будет доступен на `http://localhost:8080`
 
+Swagger UI: `http://localhost:8080/swagger/`
+
 ---
 
 ## Стек технологий
@@ -57,8 +59,6 @@ DB_PASSWORD=postgres
 
 ## API
 
-Swagger UI доступен по адресу: `http://localhost:8080/swagger/`
-
 ### Эндпоинты
 
 | Метод | Путь | Описание |
@@ -70,8 +70,9 @@ Swagger UI доступен по адресу: `http://localhost:8080/swagger/`
 | `DELETE` | `/api/v1/subscriptions/{id}` | Удалить подписку |
 | `GET` | `/api/v1/subscriptions/total-cost` | Подсчёт суммарной стоимости |
 
-### Создание подписки
+### Примеры запросов
 
+**Создание подписки**
 ```bash
 curl -X POST http://localhost:8080/api/v1/subscriptions \
   -H "Content-Type: application/json" \
@@ -83,27 +84,12 @@ curl -X POST http://localhost:8080/api/v1/subscriptions \
   }'
 ```
 
-Ответ:
-```json
-{
-  "ID": "b6620558-8de0-45af-8f0e-ca4e35f9daa0",
-  "ServiceName": "Yandex Plus",
-  "Price": 400,
-  "UserID": "60601fee-2bf1-4721-ae6f-7636e79a0cba",
-  "StartDate": "2025-07-01T00:00:00Z",
-  "EndDate": null,
-  "CreatedAt": "2026-06-09T00:00:00Z"
-}
-```
-
-### Список подписок с фильтрацией
-
+**Список подписок с фильтрацией и пагинацией**
 ```bash
 GET /api/v1/subscriptions?user_id=60601fee-...&service_name=Yandex Plus&page=1&limit=20
 ```
 
-### Подсчёт суммарной стоимости
-
+**Подсчёт суммарной стоимости за период**
 ```bash
 GET /api/v1/subscriptions/total-cost?user_id=60601fee-...&from=01-2025&to=12-2025
 ```
@@ -129,17 +115,30 @@ GET /api/v1/subscriptions/total-cost?user_id=60601fee-...&from=01-2025&to=12-202
 ```sql
 CREATE TABLE subscriptions (
     id           UUID        PRIMARY KEY DEFAULT gen_random_uuid(),
-    service_name TEXT        NOT NULL,
+    service_name TEXT        NOT NULL CHECK (length(trim(service_name)) > 0),
     price        INTEGER     NOT NULL CHECK (price > 0),
     user_id      UUID        NOT NULL,
     start_date   DATE        NOT NULL,
-    end_date     DATE,
+    end_date     DATE        CHECK (end_date IS NULL OR end_date > start_date),
     created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 ```
 
-### Миграции
-
 Миграции применяются автоматически при старте сервиса.
 
 ---
+
+## Тесты
+
+```bash
+go test ./...
+```
+
+Покрыты юнит тестами:
+- Успешное создание подписки
+- Валидация: цена <= 0
+- Валидация: пустое название сервиса
+- Валидация: дата окончания раньше даты начала
+- GetByID: запись не найдена
+- Delete: успешное удаление
+- Delete: запись не найдена

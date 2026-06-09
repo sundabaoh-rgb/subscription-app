@@ -3,8 +3,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 RUN go mod download
 COPY . .
-RUN go build -o main ./cmd/subscription-app
-
+RUN CGO_ENABLED=0 go build -o main ./cmd/subscription-app
 FROM alpine:latest
 WORKDIR /app
 COPY --from=builder /app/main .
