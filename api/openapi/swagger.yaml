@@ -1,0 +1,379 @@
+openapi: '3.0.0'
+info:
+  title: REST-сервис для агрегации данных об онлайн подписках пользователей
+  description: Спецификация для проведения обучения по проектированию и тестирования API
+  version: 0.0.1
+  contact:
+    name: Maxim Maximchuk
+    url: https://github.com/sundabaoh-rgb?tab=repositories
+    email: maskim.maximchuk@yandex.ru
+
+servers:
+  - url: http://localhost:8080/api/v1
+    description: Dev server
+
+tags:
+  - name: Subscriptions
+    description: CRUD операции над подписками
+  - name: Analytics
+    description: Вычисление стоимости подписок
+
+paths:
+  /subscriptions/total-cost:
+    get:
+      tags:
+        - Analytics
+      summary: Подсчёт суммарной стоимости подписок за период
+      description: >
+        Возвращает суммарную стоимость подписок за выбранный период.
+        Фильтрация по user_id и service_name - опциональна.
+        Если period не указан - считаются все активные подписки.
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          example: "60601fee-2bf1-4721-ae6f-7636e79a0cba"
+          description: Фильтр по ID пользователя
+        - name: service_name
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "Yandex Plus"
+          description: Фильтр по названию сервиса
+        - name: from
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^\d{2}-\d{4}$'
+          example: "01-2025"
+          description: Начало периода в формате MM-YYYY
+        - name: to
+          in: query
+          required: false
+          schema:
+            type: string
+            pattern: '^\d{2}-\d{4}$'
+          example: "06-2025"
+          description: Конец периода в формате MM-YYYY
+      responses:
+        '200':
+          description: Успешный подсчёт
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TotalCostResponse'
+        '400':
+          description: Неверные параметры запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subscriptions:
+    post:
+      tags:
+        - Subscriptions
+      summary: Создать запись о подписке
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionCreate'
+      responses:
+        '201':
+          description: Подписка успешно создана
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Неверные данные в запросе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags:
+        - Subscriptions
+      summary: Получить список подписок
+      description: Возвращает список подписок с опциональной фильтрацией и пагинацией.
+      parameters:
+        - name: user_id
+          in: query
+          required: false
+          schema:
+            type: string
+            format: uuid
+          example: "60601fee-2bf1-4721-ae6f-7636e79a0cba"
+          description: Фильтр по ID пользователя
+        - name: service_name
+          in: query
+          required: false
+          schema:
+            type: string
+          example: "Yandex Plus"
+          description: Фильтр по названию сервиса
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            default: 1
+          description: Номер страницы
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+          description: Количество элементов на странице
+      responses:
+        '200':
+          description: Список подписок
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubscriptionListResponse'
+        '400':
+          description: Неверные параметры запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /subscriptions/{id}:
+    parameters:
+      - name: id
+        in: path
+        required: true
+        schema:
+          type: string
+          format: uuid
+        example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+        description: UUID подписки
+
+    get:
+      tags:
+        - Subscriptions
+      summary: Получить подписку по ID
+      responses:
+        '200':
+          description: Данные подписки
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '404':
+          description: Подписка не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    put:
+      tags:
+        - Subscriptions
+      summary: Обновить подписку
+      description: Полная замена записи. Все обязательные поля должны быть переданы.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubscriptionCreate'
+      responses:
+        '200':
+          description: Подписка обновлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Subscription'
+        '400':
+          description: Неверные данные в запросе
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Подписка не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    delete:
+      tags:
+        - Subscriptions
+      summary: Удалить подписку
+      responses:
+        '204':
+          description: Подписка удалена (тело ответа отсутствует)
+        '404':
+          description: Подписка не найдена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Внутренняя ошибка сервера
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+
+    # ─── Входные данные ───────────────────────
+    SubscriptionCreate:
+      type: object
+      required:
+        - service_name
+        - price
+        - user_id
+        - start_date
+      properties:
+        service_name:
+          type: string
+          example: "Yandex Plus"
+          description: Название сервиса
+        price:
+          type: integer
+          minimum: 1
+          example: 400
+          description: Стоимость месячной подписки в рублях (целое число, копейки не учитываются)
+        user_id:
+          type: string
+          format: uuid
+          example: "60601fee-2bf1-4721-ae6f-7636e79a0cba"
+          description: ID пользователя в формате UUID
+        start_date:
+          type: string
+          pattern: '^\d{2}-\d{4}$'
+          example: "07-2025"
+          description: Месяц и год начала подписки в формате MM-YYYY
+        end_date:
+          type: string
+          pattern: '^\d{2}-\d{4}$'
+          example: "12-2025"
+          nullable: true
+          description: Месяц и год окончания подписки в формате MM-YYYY (опционально)
+
+    # ─── Полный объект из БД ──────────────────
+    Subscription:
+      allOf:
+        - $ref: '#/components/schemas/SubscriptionCreate'
+        - type: object
+          required:
+            - id
+            - created_at
+          properties:
+            id:
+              type: string
+              format: uuid
+              example: "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
+              description: UUID записи подписки
+            created_at:
+              type: string
+              format: date-time
+              example: "2025-07-01T12:00:00Z"
+              description: Дата и время создания записи
+
+    # ─── Ответ на список ─────────────────────
+    SubscriptionListResponse:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Subscription'
+        meta:
+          type: object
+          properties:
+            page:
+              type: integer
+              example: 1
+            limit:
+              type: integer
+              example: 20
+            total:
+              type: integer
+              example: 42
+
+    # ─── Ответ на агрегацию ───────────────────
+    TotalCostResponse:
+      type: object
+      properties:
+        total_cost:
+          type: integer
+          example: 2400
+          description: Суммарная стоимость подписок в рублях
+        currency:
+          type: string
+          example: "RUB"
+        period:
+          type: object
+          nullable: true
+          properties:
+            from:
+              type: string
+              example: "01-2025"
+            to:
+              type: string
+              example: "06-2025"
+
+    # ─── Ошибка ───────────────────────────────
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: object
+          properties:
+            code:
+              type: string
+              example: "VALIDATION_ERROR"
+              description: Машиночитаемый код ошибки
+            message:
+              type: string
+              example: "price must be a positive integer"
+              description: Человекочитаемое описание ошибки
